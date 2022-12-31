@@ -2,7 +2,11 @@ package com.company;
 
 public class Main {
 
-    public static void main(String[] args) {
-        System.out.println("ATLAST!");
+    public static void main(String[] args) throws Exception {
+
+        CertificateAuthority certificateAuthority = new CertificateAuthority();
+
+
+
     }
 }
