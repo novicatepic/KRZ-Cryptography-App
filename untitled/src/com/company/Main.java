@@ -1,99 +1,182 @@
 package com.company;
-
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.cert.X509v3CertificateBuilder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
-//import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
-import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-
-
-import java.math.BigInteger;
-import java.security.*;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.Date;
+import java.util.Scanner;
 
 public class Main {
 
-    KeyPair keyPair;
-    static X509Certificate caCertificate;
-
+    public static int MIN_PARTS_OF_DOCUMENT = 4;
+    CABody caBody;
 
     public Main() throws Exception {
-        Security.addProvider(new BouncyCastleProvider());
+        caBody = new CABody();
+    }
 
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-        keyPairGenerator.initialize(2048);
-        this.keyPair = keyPairGenerator.generateKeyPair();
+    public static void main(String[] args) /*throws Exception*/ {
 
-        Date startDate = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 100);
-        Date endTime = new Date(System.currentTimeMillis() + 365 * 24 * 60 * 60 * 1000);
 
-        BigInteger serialNumber = new BigInteger(64, new SecureRandom());
-        X500Name subject = new X500Name("CN=My CA");
-        SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(this.keyPair.getPublic().getEncoded());
-        //PublicKey
+        try {
+            Main main = new Main();
 
-        X509v3CertificateBuilder certificateBuilder = new JcaX509v3CertificateBuilder(subject,
-                serialNumber, startDate, endTime, subject, this.keyPair.getPublic());
+            /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
+            X509Certificate signed = main.caBody.signCertificate(req, "Novica", "123");*/
 
-        ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSAEncryption")
-                .build(this.keyPair.getPrivate());
 
-        X509Certificate certificate = new JcaX509CertificateConverter().getCertificate(certificateBuilder.build(contentSigner));
+            main.loadStartForm();
 
-        this.caCertificate = certificate;
+            /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
+
+            X509Certificate signed = caBody.signCertificate(req);
+            signed.verify(caBody.getPublicKey());
+            System.out.println("SIGNED!");*/
+
+            //loadStartForm();
+
+            //caBody.initCrlList();
+            /*System.out.println("BEFORE ADDITION");
+            main.caBody.addToCrlList(signed);
+            System.out.println("WHEN NOT REMOVED");
+            main.caBody.getRevokedCertificates();
+            System.out.println("WHEN REMOVED");*/
+            //main.caBody.removeFromRevokedList(signed);
+            //main.caBody.getRevokedCertificates();
+
+            //TESTING PURPOSES FOR NOW
+            //writeVerifiedCertificateToAFile(signed);
+        } catch (Exception e) {
+            System.out.println("NOT SIGNED");
+        }
+        //System.out.println(casted.getSubjectDN());
 
     }
 
-
-    public static void main(String[] args) throws Exception {
-	    Main main = new Main();
-
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-        keyPairGenerator.initialize(2048);
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
-
-        Certificate createdCert = main.createCertificate(keyPair, "Novica");
-        System.out.println(caCertificate.getSerialNumber());
-        System.out.println(caCertificate.getIssuerDN());
-
-        System.out.println(createdCert.getPublicKey());
+    public void writeVerifiedCertificateToAFile(X509Certificate toWrite) throws Exception {
+        FileOutputStream fos = new FileOutputStream("usrCrl.crl");
+        byte[] data = toWrite.getEncoded();
+        fos.write(data);
     }
 
+    public void loadStartForm() throws Exception {
+        Scanner scanner = new Scanner(System.in);
+        String answer;
+        int tries = 3;
+        boolean correct = false;
 
-    public KeyPair getCAKeyPair() {
-        return this.keyPair;
+        System.out.println("Do you have an account (y/n): ");
+        answer = scanner.nextLine();
+
+        String userName, password, certName;
+        if("y".equalsIgnoreCase(answer)) {
+
+            //ENTER CERTIFICATE LOGIC NEEDED
+            //IF CERTIFICATE PASSED THE TEST, THEN PROCEED TO USER NAME AND PASSWORD
+            System.out.println("Input your certName: ");
+            certName = scanner.nextLine();
+
+            //SIMPLE HACKER CHECK
+            FileInputStream fis = new FileInputStream(certName);
+            fis.close();
+
+            byte[] data = Files.readAllBytes(new File(certName).toPath());
+            CertificateFactory factory = CertificateFactory.getInstance("X509");
+            Certificate c = factory.generateCertificate(new ByteArrayInputStream(data));
+            X509Certificate realCert = (X509Certificate)c;
+
+            //IMPLEMENT LOGIC LATER ON
+            /*if(!caBody.checkIfIsRevoked(realCert)) {
+
+            }*/
+
+            String[] credentials = CredentialsExporter.exportCredentials(realCert);
+            String realUserName = credentials[0];
+            String realPassword = credentials[1];
+
+            int i = 0;
+            while(i < tries) {
+                System.out.println("Input your username: ");
+                userName = scanner.nextLine();
+                System.out.println("Input your password: ");
+                password = scanner.nextLine();
+                if(userName.equals(realUserName) && password.equals(realPassword)) {
+                    correct = true;
+                    break;
+                }
+                i++;
+            }
+
+
+            if(correct) {
+                //LIST FILES ETC.
+                System.out.println("YOU ARE LOGGED IN, WELCOME!");
+            } else {
+                caBody.addToCrlList(realCert);
+                String extraInput = "";
+                System.out.println("YOUR CERTIFICATE IS SUSPENDED!");
+                System.out.println("Reactivate certificate (rc) or make a new registration (r)");
+
+                switch (extraInput) {
+                    case "rc":
+                        System.out.println("Input your username: ");
+                        userName = scanner.nextLine();
+                        System.out.println("Input your password: ");
+                        password = scanner.nextLine();
+                        if(userName.equals(realUserName) && password.equals(realPassword)) {
+                            caBody.reactivateCertificate(realCert);
+                        }
+                        break;
+                    case "r":
+                        System.out.println("WELCOME TO ACCOUNT CREATOR: ");
+                        System.out.println("===========================");
+                        System.out.println("Input new user name: ");
+                        userName = scanner.nextLine();
+                        System.out.println("Input new password: ");
+                        password = scanner.nextLine();
+                        PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
+                        caBody.signCertificate(req, userName, password);
+                        break;
+                    default:
+                        throw new Exception("Invalid input!");
+                }
+
+            }
+            //CHECK IF IT'S VALID SOMEHOW, THEN PROCEED
+
+
+        } else if("n".equalsIgnoreCase(answer)) {
+
+            System.out.println("WELCOME TO ACCOUNT CREATOR: ");
+            System.out.println("===========================");
+            System.out.println("Input new user name: ");
+            userName = scanner.nextLine();
+            System.out.println("Input new password: ");
+            password = scanner.nextLine();
+            PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
+            caBody.signCertificate(req, userName, password);
+            //CREATE CERTIFICATE LOGIC NEEDED!
+
+        } else {
+            throw new Exception("Invalid input (y/n)");
+        }
+
     }
 
-    public X509Certificate getCaCertificate() {
-        return this.caCertificate;
+    //TEST FUNC FROM MAIN -> GONNA IMPLEMENT IT IN CABODY CONSTRUCTOR, OR CALL THIS ONE
+    public static Certificate readCertificateFromAFile() {
+        try {
+            byte[] data = Files.readAllBytes(new File("caCertificate.crt").toPath());
+            CertificateFactory factory = CertificateFactory.getInstance("X509");
+            return factory.generateCertificate(new ByteArrayInputStream(data));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
-    public Certificate createCertificate(KeyPair keyPair, String subject) throws Exception {
-        Date startDate = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 100);
-        Date endTime = new Date(System.currentTimeMillis() + 365 * 24 * 60 * 60 * 1000);
-
-        BigInteger serialNumber = new BigInteger(64, new SecureRandom());
-        X500Name subjectName = new X500Name("CN="+subject);
-        SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
-
-        X509v3CertificateBuilder certificateBuilder = new JcaX509v3CertificateBuilder(subjectName,
-                serialNumber, startDate, endTime, subjectName, this.keyPair.getPublic());
-
-        ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSAEncryption")
-                .build(this.keyPair.getPrivate());
-
-        X509Certificate certificate =  new JcaX509CertificateConverter().getCertificate(
-                certificateBuilder.build(contentSigner)
-        );
-
-        return certificate;
-
-    }
 }
