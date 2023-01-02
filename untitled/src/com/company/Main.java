@@ -24,13 +24,25 @@ public class Main {
 
         try {
             Main main = new Main();
-
+            //KeyStoreCreator.generateKeyStore();
             /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
             X509Certificate signed = main.caBody.signCertificate(req, "Novica", "123");*/
 
+            /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
+            main.caBody.signCertificate(req, "NOCO", "TEPIC");*/
 
-            main.loadStartForm();
+            //main.loadStartForm();
 
+            //KeyStoreCreator.generateKeyStore();
+
+            byte[] data = Files.readAllBytes(new File("NOCO.crt").toPath());
+            CertificateFactory factory = CertificateFactory.getInstance("X509");
+            Certificate c = factory.generateCertificate(new ByteArrayInputStream(data));
+            X509Certificate realCert = (X509Certificate)c;
+
+            User user = new User();
+            user.uploadDocument("./lol.txt", realCert);
+            user.listDocuments();
             /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
 
             X509Certificate signed = caBody.signCertificate(req);
@@ -51,6 +63,7 @@ public class Main {
             //TESTING PURPOSES FOR NOW
             //writeVerifiedCertificateToAFile(signed);
         } catch (Exception e) {
+            System.out.println(e.getMessage());
             System.out.println("NOT SIGNED");
         }
         //System.out.println(casted.getSubjectDN());

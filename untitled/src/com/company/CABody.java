@@ -12,6 +12,8 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.security.*;
 import java.security.cert.*;
@@ -20,6 +22,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Scanner;
 import java.util.Set;
 
 public class CABody {
@@ -85,9 +88,6 @@ public class CABody {
 
             caCert = new JcaX509CertificateConverter()
                     .getCertificate(certBuilder.build(contentSigner));
-
-            //Seems that method doesn't exist
-            //caCert.writeTo(new FileOutputStream("ca.crt"));
 
             byte[] caData = caCert.getEncoded();
 
@@ -254,8 +254,9 @@ public class CABody {
 
     public X509Certificate signCertificate(PKCS10CertificationRequest certificateRequest, String uName, String pass) throws Exception {
 
-        SubjectPublicKeyInfo subjectPublicKeyInfo = certificateRequest.getSubjectPublicKeyInfo();
+        //PUBLIC KEY MIGHT HAVE TO BE CORRECTED, BE CAREFUL!
 
+        SubjectPublicKeyInfo subjectPublicKeyInfo = certificateRequest.getSubjectPublicKeyInfo();
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(subjectPublicKeyInfo.getEncoded());
         PublicKey convertedKey = keyFactory.generatePublic(x509EncodedKeySpec);
@@ -267,21 +268,14 @@ public class CABody {
         Date endDate = new Date(startDate.getTime() + (365/2) * 24 * 60 * 60 * 1000);
 
         BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
-        //System.out.println("SERIAL " + serial);
-
-
-        /*X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(issuer, serialNumber,
-                notBefore, notAfter, subject, keyPair.getPublic());*/
         X500Name issuer = new X500Name(caCert.getSubjectX500Principal().toString());
         X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(issuer, serial, startDate, endDate, subject,
-                keyPair.getPublic());
+                publicKey);
 
         //TEST
 
 
         JcaX509ExtensionUtils extUtils = new JcaX509ExtensionUtils();
-
-
         ExtendedKeyUsage eku = new ExtendedKeyUsage(ekuValues);
 
         //EXTENSIONS ENABLED
@@ -297,15 +291,38 @@ public class CABody {
         importUNAndPassword(builder, uName, pass);
 
         ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(privateKey);
-
-
-
         X509Certificate signedCert = new JcaX509CertificateConverter().getCertificate(builder.build(contentSigner));
 
         //CREDENTIALS EXPORTED -> VERY NICE!
-        /*String[] credentialsExported = CredentialsExporter.exportCredentials(signedCert);
+        String[] credentialsExported = CredentialsExporter.exportCredentials(signedCert);
         System.out.println("STR[0]: " + credentialsExported[0]);
-        System.out.println("STR[1]: " + credentialsExported[1]);*/
+        /*System.out.println("STR[1]: " + credentialsExported[1]);*/
+
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        try (InputStream inputStream = new FileInputStream("keystore.jks")) {
+            keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
+        }
+
+        Scanner scanner = new Scanner(System.in);
+        String passwordInput;
+        System.out.println("Input a password for your private key (REMEMBER THIS PASSWORD): ");
+        passwordInput = scanner.nextLine();
+
+        if("".equals(passwordInput))
+            throw new Exception("Invalid password");
+
+
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(4096);
+        KeyPair kp = kpg.generateKeyPair();
+
+        //System.out.println(credentialsExported[0]);
+        keyStore.setKeyEntry(credentialsExported[0], privateKey, passwordInput.toCharArray(),
+                                new Certificate[] {signedCert});
+
+        try (OutputStream outputStream = new FileOutputStream("keystore.jks")) {
+            keyStore.store(outputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
+        }
 
         byte[] data = signedCert.getEncoded();
 
@@ -313,6 +330,11 @@ public class CABody {
         fos.write(data);
         fos.close();
 
+        /*System.out.println(publicKey);
+        System.out.println("=========");
+        System.out.println(signedCert.getPublicKey());*/
+        System.out.println("PRIV FROM BODY");
+        System.out.println(privateKey);
 
         return  signedCert;
 
