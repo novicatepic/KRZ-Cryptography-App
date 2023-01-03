@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -12,7 +13,9 @@ import java.util.Scanner;
 
 public class Main {
 
-    public static int MIN_PARTS_OF_DOCUMENT = 4;
+    public static final int MIN_PARTS_OF_DOCUMENT = 4;
+    public static final String home = System.getProperty("user.home");
+    public static final File downloadsFolder = new File(home+"/Downloads/");
     CABody caBody;
 
     public Main() throws Exception {
@@ -41,8 +44,15 @@ public class Main {
             X509Certificate realCert = (X509Certificate)c;
 
             User user = new User();
+
             user.uploadDocument("./lol.txt", realCert);
-            user.listDocuments();
+            user.listDocumentsForReal();
+            user.downloadDocument();
+            //user.validateDocument("lol");
+            //user.testFunc();
+            //user.listDocuments();
+
+
             /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
 
             X509Certificate signed = caBody.signCertificate(req);
