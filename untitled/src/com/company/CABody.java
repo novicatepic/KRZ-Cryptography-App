@@ -10,11 +10,17 @@ import org.bouncycastle.cert.jcajce.*;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.*;
 import java.security.cert.Certificate;
@@ -39,35 +45,29 @@ public class CABody {
         X509Certificate realCert = (X509Certificate)tempCert;
         this.caCert = realCert;
 
-        FileInputStream fis = new FileInputStream("private_key.pem");
-        byte[] key = fis.readAllBytes();
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(key);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        this.privateKey = keyFactory.generatePrivate(keySpec);
-        /*byte[] encodedKey = realCert.getEncoded();
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encodedKey);
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PrivateKey privateKey = keyFactory.generatePrivate(keySpec);
-        this.privateKey = privateKey;*/
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        try (InputStream inputStream = new FileInputStream("keystore.jks")) {
+            keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
+        }
+        privateKey = (PrivateKey) keyStore.getKey("CABody", "CABody".toCharArray());
 
         this.publicKey = caCert.getPublicKey();
         this.crl = loadCRL();
-        //System.out.println(crl.getSigAlgName());
-
-        //LOGIC TO LOAD CERT FROM FILW
     }
 
     public void CABodyCreator() {
         try {
+            KeyStoreCreator.generateKeyStore();
+
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
             keyPairGenerator.initialize(2048);
 
             KeyPair keyPair = keyPairGenerator.generateKeyPair();
             privateKey = keyPair.getPrivate();
 
-            FileOutputStream stream = new FileOutputStream("private_key.pem");
+            /*FileOutputStream stream = new FileOutputStream("private_key.pem");
             stream.write(privateKey.getEncoded());
-            stream.close();
+            stream.close();*/
 
             X500Name subject = new X500Name("CN=CA, O=ETF, L=BL, ST=RS, C=BA");
 
@@ -83,11 +83,23 @@ public class CABody {
             X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(issuer, serialNumber,
                                                     notBefore, notAfter, subject, keyPair.getPublic());
 
+            KeyStore keyStore = KeyStore.getInstance("JKS");
+            try (InputStream inputStream = new FileInputStream("keystore.jks")) {
+                keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
+            }
+
+
             ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSAEncryption")
                     .build(keyPair.getPrivate());
 
             caCert = new JcaX509CertificateConverter()
                     .getCertificate(certBuilder.build(contentSigner));
+
+            keyStore.setKeyEntry("CABody", privateKey, "CABody".toCharArray(),
+                    new Certificate[] {caCert});
+            try (OutputStream outputStream = new FileOutputStream("keystore.jks")) {
+                keyStore.store(outputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
+            }
 
             byte[] caData = caCert.getEncoded();
 
@@ -177,12 +189,15 @@ public class CABody {
 
     public boolean checkIfIsRevoked(X509Certificate certificate) throws Exception {
         Set<? extends X509CRLEntry> revokedCertificates = crl.getRevokedCertificates();
-        for(X509CRLEntry entry : revokedCertificates) {
-            BigInteger serialNumber = entry.getSerialNumber();
-            if(serialNumber.equals(certificate.getSerialNumber())) {
-                return true;
+        if(revokedCertificates != null) {
+            for(X509CRLEntry entry : revokedCertificates) {
+                BigInteger serialNumber = entry.getSerialNumber();
+                if(serialNumber.equals(certificate.getSerialNumber())) {
+                    return true;
+                }
             }
         }
+
         return false;
     }
 
@@ -202,11 +217,14 @@ public class CABody {
             crlBuilder.addCRLEntry(serial, new Date(), 1);
 
             //SEEMS TO WORK - SO FAR SO GOOD
-            for(X509CRLEntry entry : crl2.getRevokedCertificates()) {
-                //System.out.println("POWER RANGERS");
-                BigInteger serialNumber = entry.getSerialNumber();
-                crlBuilder.addCRLEntry(serialNumber, entry.getRevocationDate(), 1);
+            if(crl2.getRevokedCertificates() != null) {
+                for(X509CRLEntry entry : crl2.getRevokedCertificates()) {
+                    //System.out.println("POWER RANGERS");
+                    BigInteger serialNumber = entry.getSerialNumber();
+                    crlBuilder.addCRLEntry(serialNumber, entry.getRevocationDate(), 1);
+                }
             }
+
 
             ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(privateKey);
 
@@ -230,11 +248,13 @@ public class CABody {
         if(checkIfIsRevoked(certificate)) {
             X500Name issuerName = new X500Name(caCert.getIssuerDN().toString());
             X509v2CRLBuilder crlBuilder = new JcaX509v2CRLBuilder(issuerName, new Date());
-            for(X509CRLEntry entry : crl2.getRevokedCertificates()) {
-                //System.out.println("POWER RANGERS");
-                BigInteger serialNumber = entry.getSerialNumber();
-                if(!serialNumber.equals(certificate.getSerialNumber())) {
-                    crlBuilder.addCRLEntry(serialNumber, entry.getRevocationDate(), 1);
+            if(crl2.getRevokedCertificates() != null) {
+                for(X509CRLEntry entry : crl2.getRevokedCertificates()) {
+                    //System.out.println("POWER RANGERS");
+                    BigInteger serialNumber = entry.getSerialNumber();
+                    if(!serialNumber.equals(certificate.getSerialNumber())) {
+                        crlBuilder.addCRLEntry(serialNumber, entry.getRevocationDate(), 1);
+                    }
                 }
             }
 
@@ -255,26 +275,28 @@ public class CABody {
     public X509Certificate signCertificate(PKCS10CertificationRequest certificateRequest, String uName, String pass) throws Exception {
 
         //PUBLIC KEY MIGHT HAVE TO BE CORRECTED, BE CAREFUL!
-
-        SubjectPublicKeyInfo subjectPublicKeyInfo = certificateRequest.getSubjectPublicKeyInfo();
+        /*SubjectPublicKeyInfo subjectPublicKeyInfo = certificateRequest.getSubjectPublicKeyInfo();
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(subjectPublicKeyInfo.getEncoded());
         PublicKey convertedKey = keyFactory.generatePublic(x509EncodedKeySpec);
+        KeyPair keyPair = new KeyPair(convertedKey, null);*/
 
-        KeyPair keyPair = new KeyPair(convertedKey, null);
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(4096);
+        KeyPair kp = kpg.generateKeyPair();
+
 
         X500Name subject = certificateRequest.getSubject();
         Date startDate = new Date();
+        //HALF A YEAR
         Date endDate = new Date(startDate.getTime() + (365/2) * 24 * 60 * 60 * 1000);
 
         BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
         X500Name issuer = new X500Name(caCert.getSubjectX500Principal().toString());
         X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(issuer, serial, startDate, endDate, subject,
-                publicKey);
+                kp.getPublic());
 
         //TEST
-
-
         JcaX509ExtensionUtils extUtils = new JcaX509ExtensionUtils();
         ExtendedKeyUsage eku = new ExtendedKeyUsage(ekuValues);
 
@@ -311,30 +333,28 @@ public class CABody {
         if("".equals(passwordInput))
             throw new Exception("Invalid password");
 
-
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(4096);
-        KeyPair kp = kpg.generateKeyPair();
-
-        //System.out.println(credentialsExported[0]);
-        keyStore.setKeyEntry(credentialsExported[0], privateKey, passwordInput.toCharArray(),
+        keyStore.setKeyEntry(credentialsExported[0], kp.getPrivate(), passwordInput.toCharArray(),
                                 new Certificate[] {signedCert});
 
         try (OutputStream outputStream = new FileOutputStream("keystore.jks")) {
             keyStore.store(outputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
         }
 
+        KeyGenerator generator = KeyGenerator.getInstance("AES");
+        generator.init(128); // The AES key size in number of bits
+        SecretKey secKey = generator.generateKey();
+        Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
+        Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        cipher.init(Cipher.PUBLIC_KEY, kp.getPublic());
+        byte[] encryptedKey = cipher.doFinal(secKey.getEncoded());
+        Files.write(Paths.get(Main.keyPath+"/"+credentialsExported[0]), encryptedKey);
+
         byte[] data = signedCert.getEncoded();
 
         FileOutputStream fos = new FileOutputStream(uName + ".crt");
         fos.write(data);
         fos.close();
-
-        /*System.out.println(publicKey);
-        System.out.println("=========");
-        System.out.println(signedCert.getPublicKey());*/
-        System.out.println("PRIV FROM BODY");
-        System.out.println(privateKey);
 
         return  signedCert;
 

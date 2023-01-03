@@ -20,19 +20,29 @@ public class User {
 
     private String userName;
     private String password;
-    byte[] encryptedKey;
+    byte[] encryptedKey = new byte[512];
     PrivateKey privateKey;
     PublicKey publicKey;
-    //Cipher aesCipher;
-    SecretKey secKey;
+    Cipher aesCipher;
+    private X509Certificate certificate;
 
-    public User() {
-
-    }
-
-    public User(String uN, String p) {
+    public User(String uN, String p, X509Certificate certificate) throws Exception {
+        Scanner scanner = new Scanner(System.in);
         userName = uN;
         password = p;
+        this.certificate = certificate;
+        publicKey = certificate.getPublicKey();
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        try (InputStream inputStream = new FileInputStream("keystore.jks")) {
+            keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
+        }
+        System.out.println("Enter a password for your private key: ");
+        String passInput = scanner.nextLine();
+        privateKey = (PrivateKey) keyStore.getKey(userName, passInput.toCharArray());
+        FileInputStream fis = new FileInputStream(Main.keyPath+"/"+userName);
+        fis.read(encryptedKey);
+        System.out.println("ENCRYPTED KEY = " + new String(encryptedKey));
+        fis.close();
     }
 
     public String getUserName() {
@@ -43,8 +53,7 @@ public class User {
         return password;
     }
 
-    //IN WORKS FOR NOW!
-    public void uploadDocument(String path, X509Certificate certificate) {
+    public void uploadDocument(String path) {
         Random random = new Random();
         int documentParts = Main.MIN_PARTS_OF_DOCUMENT;
 
@@ -59,26 +68,25 @@ public class User {
                 separateDocuments[i] = "";
             }
 
-            publicKey = certificate.getPublicKey();
-            //SHOULD IMPLEMENT INPUT HERE, FOR PRIVATE KEY!
-            KeyStore keyStore = KeyStore.getInstance("JKS");
-            try (InputStream inputStream = new FileInputStream("keystore.jks")) {
-                keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
-            }
-            privateKey = (PrivateKey) keyStore.getKey("NOCO", "sigurnost".toCharArray());
-
             int numLines = fileContent.size();
             int separator = numLines / documentParts;
             int i = 0;
             int k = 0;
-            KeyGenerator generator = KeyGenerator.getInstance("AES");
+            /*KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(128); // The AES key size in number of bits
-            secKey = generator.generateKey();
+            SecretKey secKey = generator.generateKey();
             Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
             aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
             Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             cipher.init(Cipher.PUBLIC_KEY, publicKey);
-            encryptedKey = cipher.doFinal(secKey.getEncoded());
+            encryptedKey = cipher.doFinal(secKey.getEncoded());*/
+            Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+            cipher.init(Cipher.PRIVATE_KEY, privateKey);
+            byte[] decryptedKey = cipher.doFinal(encryptedKey);
+
+            SecretKey originalKey = new SecretKeySpec(decryptedKey , 0, decryptedKey .length, "AES");
+            aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            aesCipher.init(Cipher.ENCRYPT_MODE, originalKey);
             List<byte[]> signedMessages = new ArrayList<>();
             while(i < documentParts) {
                 for(int j = 0; j < separator; j++) {
@@ -114,7 +122,7 @@ public class User {
             int dirNum = 1;
             for(int j = 0; j < separateDocuments.length; j++) {
                 new File("./"+directory+dirNum++).mkdir();
-                new File("./NOCOh").mkdir();
+                new File("./"+userName+"h").mkdir();
             }
 
             dirNum = 1;
@@ -124,7 +132,7 @@ public class User {
                         "./dir"+dirNum+"/"+originalPathName+String.valueOf(j+1) + ".txt"));
                 f_writer.write(separateDocuments[j]);
                 f_writer.close();
-                Files.write(Paths.get("./NOCOh/"+originalPathName+ String.valueOf(j+1) +".txt"), signedMessages.get(j));
+                Files.write(Paths.get("./"+userName+"h/"+originalPathName+ String.valueOf(j+1) +".txt"), signedMessages.get(j));
                 dirNum++;
             }
 
@@ -167,36 +175,42 @@ public class User {
     private Set<String> files = new HashSet<>();
     public void listDocumentsForReal() {
         //SHOULD BE USER NAME IMPLEMENTED
-        File helpDir = new File("./NOCOh/");
+        new File("./"+userName+"h/").mkdir();
+        File helpDir = new File("./"+userName+"h/");
         String[] listFiles = helpDir.list();
-        //Set<String> files = new HashSet<>();
         boolean first = true;
-        for(String file : listFiles) {
-            String helper = file.substring(0, file.length()-5);
-            if(first) {
-                files.add(helper);
-                first = false;
-            }
-            else {
-                for(String f : files) {
-                    if(!file.contains(f)) {
-                        files.add(helper);
+        if(listFiles != null) {
+            for(String file : listFiles) {
+                String helper = file.substring(0, file.length()-5);
+                if(first) {
+                    files.add(helper);
+                    first = false;
+                }
+                else {
+                    for(String f : files) {
+                        if(!file.contains(f)) {
+                            files.add(helper);
+                        }
                     }
                 }
             }
+
+            //PRINT DOCUMENTS
+            System.out.println("=== YOUR DOCUMENT LIST ===");
+            System.out.println("==========================");
+            System.out.println("==========================");
+            System.out.println("==========================");
+            for(String printer : files) {
+                System.out.println(printer);
+            }
+            System.out.println("==========================");
+            System.out.println("==========================");
+            System.out.println("==========================");
+        }
+        else {
+            System.out.println("YOU DON'T HAVE ANY FILES YET");
         }
 
-        //PRINT DOCUMENTS
-        System.out.println("=== YOUR DOCUMENT LIST ===");
-        System.out.println("==========================");
-        System.out.println("==========================");
-        System.out.println("==========================");
-        for(String printer : files) {
-            System.out.println(printer);
-        }
-        System.out.println("==========================");
-        System.out.println("==========================");
-        System.out.println("==========================");
     }
 
     private String fullContent = "";
@@ -219,21 +233,21 @@ public class User {
                 String[] folderContents = openFolder.list();
 
                 for(String file : folderContents) {
-                    if(file.contains(document)) {
+                    if(file.contains(document) && files.contains(document)) {
                         String path = "./"+folder+"/"+file;
                         String readContent = Files.readString(Paths.get(path));
-                        //System.out.println("CONTENT " + readContent);
+                        System.out.println("CONTENT " + readContent);
                         byte[] signedMessage = Base64.getDecoder().decode(readContent);
                         byte[] bytePlainText = aesCipher.doFinal(signedMessage);
                         fullContent += new String(bytePlainText);
-                        File hashDir = new File("./NOCOh/");
+                        File hashDir = new File("./"+userName+"h/");
                         String[] hashes = hashDir.list();
                         for(String hash : hashes) {
                             if(hash.equals(file)) {
                                 //System.out.println("GOOOOO");
-                                String pathH = "./NOCOh/"+hash;
+                                String pathH = "./"+userName+"h/"+hash;
                                 FileInputStream fis = new FileInputStream(pathH);
-                                byte[] readHash = new byte[256];
+                                byte[] readHash = new byte[512];
                                 fis.read(readHash);
                                 fis.close();
                                 Signature signature = Signature.getInstance("SHA256withRSA");
@@ -243,7 +257,7 @@ public class User {
                                 if(!valid) {
                                     isValid = false;
                                 }
-                                //System.out.println("VALID: " + valid);
+                                System.out.println("VALID: " + valid);
                             }
                         }
 
@@ -282,14 +296,14 @@ public class User {
                     byte[] bytePlainText = aesCipher.doFinal(signedMessage);
                     System.out.println(new String(bytePlainText));
 
-                    File hashDir = new File("./NOCOh/");
+                    File hashDir = new File("./"+userName+"h/");
                     String[] hashes = hashDir.list();
                     for(String hash : hashes) {
                         if(hash.equals(file)) {
                             //System.out.println("GOOOOO");
-                            String pathH = "./NOCOh/"+hash;
+                            String pathH = "./"+userName+"h/"+hash;
                             FileInputStream fis = new FileInputStream(pathH);
-                            byte[] readHash = new byte[256];
+                            byte[] readHash = new byte[512];
                             fis.read(readHash);
                             System.out.println("READ: "+ readHash);
 
@@ -299,7 +313,7 @@ public class User {
                             signature.update(bytePlainText);
                             System.out.println("SUP");
                             boolean valid = signature.verify(readHash);
-                            //System.out.println("VALID: " + valid);
+                            System.out.println("VALID: " + valid);
                         }
                     }
                 }
@@ -312,7 +326,7 @@ public class User {
 
 
 
-    public void testFunc() throws Exception {
+    /*public void testFunc() throws Exception {
         KeyGenerator generator = KeyGenerator.getInstance("AES");
         generator.init(128); // The AES key size in number of bits
         secKey = generator.generateKey();
@@ -355,7 +369,7 @@ public class User {
         boolean valid = signature2.verify(signedMessage);
         System.out.println("VALID: " + valid);
 
-    }
+    }*/
 
 
 }
