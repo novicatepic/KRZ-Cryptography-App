@@ -13,7 +13,7 @@ public class KeyStoreCreator {
         KeyStore keyStore = KeyStore.getInstance("JKS");
         keyStore.load(null, null);
 
-        FileOutputStream fos = new FileOutputStream("keystore.jks");
+        FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"keystore.jks");
         keyStore.store(fos, KEY_STORE_PASSWORD.toCharArray());
         fos.close();
     }

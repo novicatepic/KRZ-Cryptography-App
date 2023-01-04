@@ -3,20 +3,22 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.nio.file.Files;
-import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.Random;
 import java.util.Scanner;
 
 public class Main {
 
     public static final int MIN_PARTS_OF_DOCUMENT = 4;
-    public static final String home = System.getProperty("user.home");
-    public static final File downloadsFolder = new File(home+"/Downloads/");
+    /*public static final String home = System.getProperty("user.home");
+    public static final File downloadsFolder = new File(home+"/Downloads/");*/
     public static final String keyPath = "./keys";
+    public static final String REPOSITORIUM_FOLDER = "./REPOSITORIUM/";
+    public static final String CER_FOLDER = "./CERTIFICATES/";
+    public static final String SPECIAL_SIGN = "-";
     CABody caBody;
 
     public Main() throws Exception {
@@ -36,20 +38,20 @@ public class Main {
             /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
             main.caBody.signCertificate(req, "NOCO", "TEPIC");*/
 
-            main.loadStartForm();
+            //main.loadStartForm();
 
             //KeyStoreCreator.generateKeyStore();
 
-            /*byte[] data = Files.readAllBytes(new File("NOCO.crt").toPath());
+            byte[] data = Files.readAllBytes(new File(CER_FOLDER+"NOCO.crt").toPath());
             CertificateFactory factory = CertificateFactory.getInstance("X509");
             Certificate c = factory.generateCertificate(new ByteArrayInputStream(data));
             X509Certificate realCert = (X509Certificate)c;
 
-            User user = new User("NOCO", "123", realCert);*/
-
+            User user = new User("NOCO", "TEPIC", realCert);
+            user.listDocumentsForReal();
             //user.uploadDocument("./lol.txt");
-            /*user.listDocumentsForReal();
-            user.downloadDocument();*/
+            //user.listDocumentsForReal();
+            //user.downloadDocument();
             //user.validateDocument("lol");
             //user.testFunc();
             //user.listDocuments();
@@ -82,11 +84,11 @@ public class Main {
 
     }
 
-    public void writeVerifiedCertificateToAFile(X509Certificate toWrite) throws Exception {
+    /*public void writeVerifiedCertificateToAFile(X509Certificate toWrite) throws Exception {
         FileOutputStream fos = new FileOutputStream("usrCrl.crl");
         byte[] data = toWrite.getEncoded();
         fos.write(data);
-    }
+    }*/
 
     public void loadStartForm() throws Exception {
         Scanner scanner = new Scanner(System.in);
@@ -106,11 +108,11 @@ public class Main {
                 System.out.println("Input your certName: ");
                 certName = scanner.nextLine();
 
-                //SIMPLE HACKER CHECK
-                FileInputStream fis = new FileInputStream(certName);
+                //SIMPLE HACKER CHECK, IF IT EXISTS
+                FileInputStream fis = new FileInputStream(CER_FOLDER+certName);
                 fis.close();
 
-                byte[] data = Files.readAllBytes(new File(certName).toPath());
+                byte[] data = Files.readAllBytes(new File(CER_FOLDER+certName).toPath());
                 CertificateFactory factory = CertificateFactory.getInstance("X509");
                 Certificate c = factory.generateCertificate(new ByteArrayInputStream(data));
                 X509Certificate realCert = (X509Certificate)c;
@@ -150,9 +152,13 @@ public class Main {
                     if("-l".equalsIgnoreCase(workOption)) {
                         user.listDocumentsForReal();
                     } else if("-u".equalsIgnoreCase(workOption)) {
+                        System.out.println(SPECIAL_SIGN + " NOT ALLOWED AS PART OF THE DOCUMENT NAME, WATCH OUT!");
                         System.out.println("Enter a path to upload your document: ");
-                        String path="./";
+                        String path;
                         path = scanner.nextLine();
+                        if(path != null && path.contains(SPECIAL_SIGN)) {
+                            throw new Exception(SPECIAL_SIGN + " NOT ALLOWED!");
+                        }
                         user.uploadDocument(path);
                     } else if("-d".equalsIgnoreCase(workOption)) {
                         user.downloadDocument();
@@ -217,7 +223,7 @@ public class Main {
     //TEST FUNC FROM MAIN -> GONNA IMPLEMENT IT IN CABODY CONSTRUCTOR, OR CALL THIS ONE
     public static Certificate readCertificateFromAFile() {
         try {
-            byte[] data = Files.readAllBytes(new File("caCertificate.crt").toPath());
+            byte[] data = Files.readAllBytes(new File(CER_FOLDER+"caCertificate.crt").toPath());
             CertificateFactory factory = CertificateFactory.getInstance("X509");
             return factory.generateCertificate(new ByteArrayInputStream(data));
         } catch (Exception e) {

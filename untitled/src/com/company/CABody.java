@@ -14,10 +14,7 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -46,7 +43,7 @@ public class CABody {
         this.caCert = realCert;
 
         KeyStore keyStore = KeyStore.getInstance("JKS");
-        try (InputStream inputStream = new FileInputStream("keystore.jks")) {
+        try (InputStream inputStream = new FileInputStream(Main.CER_FOLDER+"keystore.jks")) {
             keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
         }
         privateKey = (PrivateKey) keyStore.getKey("CABody", "CABody".toCharArray());
@@ -65,26 +62,17 @@ public class CABody {
             KeyPair keyPair = keyPairGenerator.generateKeyPair();
             privateKey = keyPair.getPrivate();
 
-            /*FileOutputStream stream = new FileOutputStream("private_key.pem");
-            stream.write(privateKey.getEncoded());
-            stream.close();*/
-
             X500Name subject = new X500Name("CN=CA, O=ETF, L=BL, ST=RS, C=BA");
-
             X500Name issuer = subject;
-
             BigInteger serialNumber = BigInteger.valueOf(1);
-
             Date notBefore = new Date();
             long duration = 365 * 24 * 60 * 60 * 1000L; //1 year, as per project spec.
             Date notAfter = new Date(notBefore.getTime() + duration);
-
-            //SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
             X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(issuer, serialNumber,
                                                     notBefore, notAfter, subject, keyPair.getPublic());
 
             KeyStore keyStore = KeyStore.getInstance("JKS");
-            try (InputStream inputStream = new FileInputStream("keystore.jks")) {
+            try (InputStream inputStream = new FileInputStream(Main.CER_FOLDER+"keystore.jks")) {
                 keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
             }
 
@@ -97,13 +85,13 @@ public class CABody {
 
             keyStore.setKeyEntry("CABody", privateKey, "CABody".toCharArray(),
                     new Certificate[] {caCert});
-            try (OutputStream outputStream = new FileOutputStream("keystore.jks")) {
+            try (OutputStream outputStream = new FileOutputStream(Main.CER_FOLDER+"keystore.jks")) {
                 keyStore.store(outputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
             }
 
             byte[] caData = caCert.getEncoded();
 
-            FileOutputStream fos = new FileOutputStream("caCertificate.crt");
+            FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"caCertificate.crt");
             fos.write(caData);
             fos.close();
 
@@ -119,13 +107,13 @@ public class CABody {
         ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(privateKey);
         X509CRL crl = new JcaX509CRLConverter().getCRL(crlBuilder.build(signer));
         byte[] data = crl.getEncoded();
-        FileOutputStream fos = new FileOutputStream("crl.crl");
+        FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"crl.crl");
         fos.write(data);
 
     }
 
     public X509CRL loadCRL() throws Exception {
-        FileInputStream fis = new FileInputStream("crl.crl");
+        FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
         X509CRL crl = (X509CRL) certificateFactory.generateCRL(fis);
         fis.close();
@@ -134,7 +122,7 @@ public class CABody {
     }
 
     public void getRevokedCertificates() throws Exception {
-        FileInputStream fis = new FileInputStream("crl.crl");
+        FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         X509CRL crl = (X509CRL) factory.generateCRL(fis);
         fis.close();
@@ -156,7 +144,7 @@ public class CABody {
     }
 
     public void removeFromRevokedList(X509Certificate certificate) throws Exception {
-        FileInputStream fis = new FileInputStream("crl.crl");
+        FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         X509CRL crl = (X509CRL) factory.generateCRL(fis);
         fis.close();
@@ -182,7 +170,7 @@ public class CABody {
         X509CRL crl2 = new JcaX509CRLConverter().getCRL(crlBuilder.build(signer));
 
         byte[] data = crl2.getEncoded();
-        FileOutputStream fos = new FileOutputStream("crl.crl");
+        FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"crl.crl");
         fos.write(data);
 
     }
@@ -204,7 +192,7 @@ public class CABody {
     //IMPLEMENTATION FOR NOW -> NOT HAPPY
     public void addToCrlList(X509Certificate cert) throws Exception {
         try {
-            FileInputStream fis = new FileInputStream("crl.crl");
+            FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
             CertificateFactory factory = CertificateFactory.getInstance("X.509");
             X509CRL crl2 = (X509CRL) factory.generateCRL(fis);
             fis.close();
@@ -231,7 +219,7 @@ public class CABody {
             X509CRL crl = new JcaX509CRLConverter().getCRL(crlBuilder.build(signer));
 
             byte[] data = crl.getEncoded();
-            FileOutputStream fos = new FileOutputStream("crl.crl");
+            FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"crl.crl");
             fos.write(data);
 
         } catch (Exception e) {
@@ -240,7 +228,7 @@ public class CABody {
     }
 
     public void reactivateCertificate(X509Certificate certificate) throws Exception {
-        FileInputStream fis = new FileInputStream("crl.crl");
+        FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         X509CRL crl2 = (X509CRL) factory.generateCRL(fis);
         fis.close();
@@ -264,7 +252,7 @@ public class CABody {
             X509CRL crl = new JcaX509CRLConverter().getCRL(crlBuilder.build(signer));
 
             byte[] data = crl.getEncoded();
-            FileOutputStream fos = new FileOutputStream("crl.crl");
+            FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"crl.crl");
             fos.write(data);
 
         } else {
@@ -280,6 +268,10 @@ public class CABody {
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(subjectPublicKeyInfo.getEncoded());
         PublicKey convertedKey = keyFactory.generatePublic(x509EncodedKeySpec);
         KeyPair keyPair = new KeyPair(convertedKey, null);*/
+
+        if(checkIfCertExists(uName)) {
+            throw new Exception("SORRY, BUT THAT CERTIFICATE ALREADY EXISTS!");
+        }
 
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         kpg.initialize(4096);
@@ -317,11 +309,11 @@ public class CABody {
 
         //CREDENTIALS EXPORTED -> VERY NICE!
         String[] credentialsExported = CredentialsExporter.exportCredentials(signedCert);
-        System.out.println("STR[0]: " + credentialsExported[0]);
+        //System.out.println("STR[0]: " + credentialsExported[0]);
         /*System.out.println("STR[1]: " + credentialsExported[1]);*/
 
         KeyStore keyStore = KeyStore.getInstance("JKS");
-        try (InputStream inputStream = new FileInputStream("keystore.jks")) {
+        try (InputStream inputStream = new FileInputStream(Main.CER_FOLDER+"keystore.jks")) {
             keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
         }
 
@@ -336,7 +328,7 @@ public class CABody {
         keyStore.setKeyEntry(credentialsExported[0], kp.getPrivate(), passwordInput.toCharArray(),
                                 new Certificate[] {signedCert});
 
-        try (OutputStream outputStream = new FileOutputStream("keystore.jks")) {
+        try (OutputStream outputStream = new FileOutputStream(Main.CER_FOLDER+"keystore.jks")) {
             keyStore.store(outputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
         }
 
@@ -352,12 +344,28 @@ public class CABody {
 
         byte[] data = signedCert.getEncoded();
 
-        FileOutputStream fos = new FileOutputStream(uName + ".crt");
+        System.out.println("SAVING CERTIFICATE WITH THE NAME OF YOUR USER NAME!");
+
+        FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+uName + ".crt");
         fos.write(data);
         fos.close();
 
         return  signedCert;
 
+    }
+
+    private boolean checkIfCertExists(String certName) {
+        boolean exists = false;
+
+        File file = new File(Main.CER_FOLDER);
+        File[] files = file.listFiles();
+        for(File f : files) {
+            if(f.getName().equalsIgnoreCase(certName+".crt")) {
+                exists = true;
+            }
+        }
+
+        return exists;
     }
 
     private void importUNAndPassword(X509v3CertificateBuilder builder, String userName, String password) throws Exception {
