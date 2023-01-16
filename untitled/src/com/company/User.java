@@ -165,35 +165,40 @@ public class User {
     }
 
     public void downloadDocument() throws Exception {
-        Scanner scanner = new Scanner(System.in);
-        String document;
-        System.out.println("Which document do you want to download: ");
-        document = scanner.nextLine();
-        boolean isValid = validateDocument(document);
-        System.out.println("validateee");
-        for(String f : files) {
-            System.out.println(f);
-        }
+        try {
+            Scanner scanner = new Scanner(System.in);
+            String document;
+            System.out.println("Which document do you want to download: ");
+            document = scanner.nextLine();
+            boolean isValid = validateDocument(document);
+            System.out.println("validateee");
+            for(String f : files) {
+                System.out.println(f);
+            }
         /*if(!files.contains(document)) {
             System.out.println("THAT DOCUMENT DOES NOT EXIST!!!");
             return;
         }*/
-        if(!isValid) {
-            String extraInput;
-            System.out.println("WARNING: DOCUMENT WAS CHANGED!!!\nAre you sure that you want to continue (y/n)");
-            extraInput = scanner.nextLine();
-            if("n".equalsIgnoreCase(extraInput)) {
-                return;
+            if(!isValid) {
+                String extraInput;
+                System.out.println("WARNING: DOCUMENT WAS CHANGED!!!\nAre you sure that you want to continue (y/n)");
+                extraInput = scanner.nextLine();
+                if("n".equalsIgnoreCase(extraInput)) {
+                    return;
+                }
             }
-        }
-        System.out.println("DOCUMENT WILL BE STORED IN YOUR DOWNLOADS FOLDER!");
-        String home = System.getProperty("user.home");
-        File downloadsFolder = new File(home+"/Downloads/"+document+".txt");
+            System.out.println("DOCUMENT WILL BE STORED IN YOUR DOWNLOADS FOLDER!");
+            String home = System.getProperty("user.home");
+            File downloadsFolder = new File(home+"/Downloads/"+document+".txt");
 
-        BufferedWriter writer = new BufferedWriter(new FileWriter(downloadsFolder));
-        writer.write(fullContent);
-        writer.close();
-        fullContent = "";
+            BufferedWriter writer = new BufferedWriter(new FileWriter(downloadsFolder));
+            writer.write(fullContent);
+            writer.close();
+            fullContent = "";
+        } catch (Exception e) {
+            System.out.println("Document has been corrupted!!!");
+        }
+
     }
 
     private boolean checkIfDocumentExists(String document) {

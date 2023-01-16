@@ -15,6 +15,7 @@ public class CertificateRequestCreator {
 
     public CertificateRequestCreator() {}
 
+    //Simple request generator
     public static PKCS10CertificationRequest makeCertRequest() {
         id++;
         try {

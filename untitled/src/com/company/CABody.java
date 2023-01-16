@@ -207,7 +207,6 @@ public class CABody {
             //SEEMS TO WORK - SO FAR SO GOOD
             if(crl2.getRevokedCertificates() != null) {
                 for(X509CRLEntry entry : crl2.getRevokedCertificates()) {
-                    //System.out.println("POWER RANGERS");
                     BigInteger serialNumber = entry.getSerialNumber();
                     crlBuilder.addCRLEntry(serialNumber, entry.getRevocationDate(), 1);
                 }

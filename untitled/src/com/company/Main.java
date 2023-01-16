@@ -7,14 +7,38 @@ import java.nio.file.Files;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.Random;
 import java.util.Scanner;
+
+//DA LI JE POTREBNO DA SU KREDENCIJALI (KORISNICKO IME I LOZINKA) UNUTAR SERTIFIKATA (credentials exporter), tako sam implementirao?
+
+//KEYSTORE ZA PRIVATNE KLJUCEVE KORISNIKA? A JAVNE IZVADITI IZ SERTIFIKATA? (User konstruktor)
+//DA LI JE U REDU DA UPLOAD DOKUMENTA RAZDVOJIMO PREMA BROJU LINIJA U DOKUMENTU?
+
+//DA LI JE U REDU DA ZA KRIPTOVANJE PODATAKA KORISTIMO SIMETRICNI ALGORITAM (AES), KLJUC CE BITI KRIPTOVAN
+//JAVNIM KLJUCEM NA FAJL SISTEMU (generalno posto RSA nije predvidjen bas za kriptovanje-dekriptovanje, a i spor je)
+//PODSJETITI NA IMPLEMENTACIJU SA VJEZBI (HASH I RSA -> A SA DRUGE STRANE SIMETRICNI ALGORITAM)
+
+//PROVJERITI ORGANIZACIJU DIREKTORIJUMA
+
+//ZNACI -> SIMETRICNI KLJUC KRIPTOVAN ASIMETRICNIM ALGORITMOM RADI ZASTITE, TAJ SIMETRICNI KLJUC KORISTIMO ZA PODATKE
+//DEKRIPTUJEMO SIMETRICNI KLJUC I NJEGA KORISTIMO PRI RADU
+//DVA DOKUMENTA, JEDAN GDJE JE SAMO HASH ZA PROVJERU, DRUGI KOJI JE MOGUCE DEKRIPTOVATI I VALIDIRATI HESEVE
+//DOWNLOAD DOKUMENTA: -> SMJESTANJE U DOWNLOADS FOLDER?
+
+//VALIDACIJA DOKUMENTA -> VALIDIRAMO SVAKI DIO DOKUMENTA I AKO NE VALJA SAMO NAZNACIMO KORISNIKU DA CJELOKUPAN DOKUMENT NE VALJA?
+
+//CRL LISTA, PROBLEM SA RADOM, DA LI JE OK AZURIRATI PETLJOM I IZBACITI ODREDJENJE SERTIFIKATE?
+//SVAKI PUT MORAM ISCITATI SVE IZ CRL LISTE I OPET UPISATI, PROBLEM?
+//REAKTIVACIJA SERTIFIKATA, SAMO IZBACITI IZ CRL LISTE?
+
+//EKSTENZIJE DODAVATI ZA SVAKI SERTIFIKAT ISTE?
+//IMPORTOVANJE UNUTAR SERTIFIKATA?
+
+//DOKUMENT U BASE64 FORMATU, TJ. SEGMENTI, AKO NEKI NE VALJA, SAMO OBAVIJESTITI KORISNIKA I NE DOZVOLITI DOWNLOAD?
 
 public class Main {
 
     public static final int MIN_PARTS_OF_DOCUMENT = 4;
-    /*public static final String home = System.getProperty("user.home");
-    public static final File downloadsFolder = new File(home+"/Downloads/");*/
     public static final String keyPath = "./keys";
     public static final String REPOSITORIUM_FOLDER = "./REPOSITORIUM/";
     public static final String CER_FOLDER = "./CERTIFICATES/";
@@ -42,13 +66,13 @@ public class Main {
 
             //KeyStoreCreator.generateKeyStore();
 
-            byte[] data = Files.readAllBytes(new File(CER_FOLDER+"NOCO.crt").toPath());
-            CertificateFactory factory = CertificateFactory.getInstance("X509");
-            Certificate c = factory.generateCertificate(new ByteArrayInputStream(data));
-            X509Certificate realCert = (X509Certificate)c;
+            //byte[] data = Files.readAllBytes(new File(CER_FOLDER+"NOCO.crt").toPath());
+            //CertificateFactory factory = CertificateFactory.getInstance("X509");
+            //Certificate c = factory.generateCertificate(new ByteArrayInputStream(data));
+            //X509Certificate realCert = (X509Certificate)c;
 
-            User user = new User("NOCO", "TEPIC", realCert);
-            user.listDocumentsForReal();
+            //User user = new User("NOCO", "TEPIC", realCert);
+            //user.listDocumentsForReal();
             //user.uploadDocument("./lol.txt");
             //user.listDocumentsForReal();
             //user.downloadDocument();
@@ -63,7 +87,7 @@ public class Main {
             signed.verify(caBody.getPublicKey());
             System.out.println("SIGNED!");*/
 
-            //loadStartForm();
+            main.loadStartForm();
 
             //caBody.initCrlList();
             /*System.out.println("BEFORE ADDITION");
@@ -108,7 +132,7 @@ public class Main {
                 System.out.println("Input your certName: ");
                 certName = scanner.nextLine();
 
-                //SIMPLE HACKER CHECK, IF IT EXISTS
+                //SIMPLE CHECK, IF IT EXISTS
                 FileInputStream fis = new FileInputStream(CER_FOLDER+certName);
                 fis.close();
 
@@ -142,29 +166,33 @@ public class Main {
                         caBody.reactivateCertificate(realCert);
                     }
 
-                    User user = new User(userName, password, realCert);
-                    //LIST FILES ETC.
-                    System.out.println("YOU ARE LOGGED IN, WELCOME!");
-                    user.listDocumentsForReal();
-                    String workOption;
-                    System.out.println("Enter -l to list your files, -u to upload a file and -d to download a file: ");
-                    workOption = scanner.nextLine();
-                    if("-l".equalsIgnoreCase(workOption)) {
+                    while(true) {
+                        User user = new User(userName, password, realCert);
+                        //LIST FILES ETC.
+                        System.out.println("YOU ARE LOGGED IN, WELCOME!");
                         user.listDocumentsForReal();
-                    } else if("-u".equalsIgnoreCase(workOption)) {
-                        System.out.println(SPECIAL_SIGN + " NOT ALLOWED AS PART OF THE DOCUMENT NAME, WATCH OUT!");
-                        System.out.println("Enter a path to upload your document: ");
-                        String path;
-                        path = scanner.nextLine();
-                        if(path != null && path.contains(SPECIAL_SIGN)) {
-                            throw new Exception(SPECIAL_SIGN + " NOT ALLOWED!");
+                        String workOption;
+                        System.out.println("Enter -l to list your files, -u to upload a file and -d to download a file: ");
+                        workOption = scanner.nextLine();
+                        if("-l".equalsIgnoreCase(workOption)) {
+                            user.listDocumentsForReal();
+                        } else if("-u".equalsIgnoreCase(workOption)) {
+                            System.out.println(SPECIAL_SIGN + " NOT ALLOWED AS PART OF THE DOCUMENT NAME, WATCH OUT!");
+                            System.out.println("Enter a path to upload your document: ");
+                            String path;
+                            path = scanner.nextLine();
+                            if(path != null && path.contains(SPECIAL_SIGN)) {
+                                throw new Exception(SPECIAL_SIGN + " NOT ALLOWED!");
+                            }
+                            user.uploadDocument(path);
+                        } else if("-d".equalsIgnoreCase(workOption)) {
+                            user.downloadDocument();
+                        } else {
+                            throw new Exception("Incorrect option!");
                         }
-                        user.uploadDocument(path);
-                    } else if("-d".equalsIgnoreCase(workOption)) {
-                        user.downloadDocument();
-                    } else {
-                        throw new Exception("Incorrect option!");
                     }
+
+
                 } else {
                     caBody.addToCrlList(realCert);
                     String extraInput = "";
