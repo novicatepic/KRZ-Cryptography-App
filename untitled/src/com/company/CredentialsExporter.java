@@ -9,10 +9,10 @@ import java.security.cert.X509Certificate;
 
 public class CredentialsExporter {
 
-    private static ASN1ObjectIdentifier oid;
+    //private static ASN1ObjectIdentifier oid;
 
-    public CredentialsExporter(ASN1ObjectIdentifier oid) {
-        this.oid = oid;
+    public CredentialsExporter() {
+        //this.oid = oid;
     }
 
     public static String[] exportCredentials(X509Certificate cert) throws Exception {
@@ -24,11 +24,9 @@ public class CredentialsExporter {
         for (GeneralName name : names) {
             if (name.getTagNo() == GeneralName.otherName) {
                 ASN1Sequence seq = ASN1Sequence.getInstance(name.getName());
-                //if ("1.2.3.4.5.6.7.8.9".equals(oid.getId())) {
-                    ASN1Primitive asn1Primitive = (ASN1Primitive) seq.getObjectAt(1);
-                    String str = asn1Primitive.toString();
-                    exported = str.split(":");
-                //}
+                ASN1Primitive asn1Primitive = (ASN1Primitive) seq.getObjectAt(1);
+                String str = asn1Primitive.toString();
+                exported = str.split(":");
             }
         }
 

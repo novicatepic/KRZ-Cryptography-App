@@ -382,7 +382,7 @@ public class CABody {
         GeneralNames subjectAltNames = GeneralNames.getInstance(new DERSequence((GeneralName[]) namesList.toArray(new GeneralName[] {})));
         builder.addExtension(Extension.subjectAlternativeName, false, subjectAltNames);
 
-        new CredentialsExporter(oid);
+        new CredentialsExporter();
         //System.out.println("BLAA");
     }
 

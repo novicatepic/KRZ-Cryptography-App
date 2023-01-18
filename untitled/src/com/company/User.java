@@ -1,5 +1,7 @@
 package com.company;
 
+import org.bouncycastle.oer.its.ieee1609dot2.basetypes.SequenceOfUint8;
+
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -77,28 +79,21 @@ public class User {
         }
 
         try {
-            List<String> fileContent = Files.readAllLines(realPath);
-            if(fileContent.size() < documentParts) {
-                documentParts = fileContent.size();
+            byte[] fileContent = Files.readAllBytes(realPath);
+            //List<String> fileContent = Files.readAllLines(realPath);
+            if(fileContent.length < documentParts) {
+                documentParts = fileContent.length;
             }
-            String[] separateDocuments = new String[documentParts];
+            byte[] separateDocuments = new byte[documentParts];
 
-            for(int i = 0; i < separateDocuments.length; i++) {
+            /*for(int i = 0; i < separateDocuments.length; i++) {
                 separateDocuments[i] = "";
-            }
+            }*/
 
-            int numLines = fileContent.size();
+            int numLines = fileContent.length;
             int separator = numLines / documentParts;
             int i = 0;
             int k = 0;
-            /*KeyGenerator generator = KeyGenerator.getInstance("AES");
-            generator.init(128); // The AES key size in number of bits
-            SecretKey secKey = generator.generateKey();
-            Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
-            Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-            cipher.init(Cipher.PUBLIC_KEY, publicKey);
-            encryptedKey = cipher.doFinal(secKey.getEncoded());*/
             Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             cipher.init(Cipher.PRIVATE_KEY, privateKey);
             byte[] decryptedKey = cipher.doFinal(encryptedKey);
@@ -107,7 +102,78 @@ public class User {
             aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
             aesCipher.init(Cipher.ENCRYPT_MODE, originalKey);
             List<byte[]> signedMessages = new ArrayList<>();
+
+            int partSize = fileContent.length / documentParts;
+            //boolean isIn = false;
+            int contentCounter = 0;
+
+            String directory = "dir";
+            int dirNum = 1;
+            new File(Main.REPOSITORIUM_FOLDER+userName).mkdir();
+            new File("./"+userName+"h").mkdir();
+            for(int j = 0; j < separateDocuments.length; j++) {
+                new File(Main.REPOSITORIUM_FOLDER+userName+"/"+directory+dirNum++).mkdir();
+
+            }
+            dirNum=1;
             while(i < documentParts) {
+                byte[] bytes;
+                int tempSize = 0;
+                if (i == documentParts - 1) {
+                    for(int j = contentCounter; j < fileContent.length; j++) {
+                        tempSize++;
+                    }
+                }
+                else {
+                    tempSize = partSize;
+                }
+                bytes = new byte[tempSize];
+                //if (i != documentParts - 1) {
+                //System.out.println(documentParts);
+                //System.out.println("FULL SIZE = " + fileContent.length);
+                //System.out.println("FULL SIZE2 = " + contentCounter + tempSize);
+                //System.out.println("TEMP SIZE = " + tempSize);
+                //System.out.println("CONTENT COUNTER = " + contentCounter);
+                //System.out.println(tempSize + contentCounter);
+                    for(int j = contentCounter; j < contentCounter+tempSize; j++) {
+                        bytes[k] = fileContent[j];
+                        k++;
+                    }
+                    k=0;
+                    contentCounter += tempSize;
+                //System.out.println("TEMP SIZE = " + tempSize);
+                //System.out.println("CONTENT COUNTER = " + contentCounter);
+                //System.out.println("STRING = " + new String(bytes));
+                Signature signature = Signature.getInstance("SHA256withRSA");
+                signature.initSign(privateKey);
+                signature.update(bytes);
+                byte[] signedMessage = signature.sign();
+                //ENCRYPT DOCUMENT
+                byte[] encryptedMessage = aesCipher.doFinal(bytes);
+                signedMessages.add(signedMessage);
+
+                Path path1 = Paths.get(Main.REPOSITORIUM_FOLDER+userName+"/dir"+dirNum+"/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(dirNum) + ".txt");
+                Files.write(path1, encryptedMessage);
+                Files.write(Paths.get("./"+userName+"h/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(dirNum) +".txt"), signedMessage);
+                dirNum++;
+                i++;
+            }
+
+
+
+            /*dirNum = 1;
+            for(int j = 0; j < separateDocuments.length; j++) {
+                BufferedWriter f_writer
+                        = new BufferedWriter(new FileWriter(
+                        Main.REPOSITORIUM_FOLDER+userName+"/dir"+dirNum+"/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(j+1) + ".txt"));
+                f_writer.write(separateDocuments[j]);
+                f_writer.close();
+                Files.write(Paths.get("./"+userName+"h/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(j+1) +".txt"), signedMessages.get(j));
+                dirNum++;
+            }*/
+
+
+                        /*while(i < documentParts) {
                 for(int j = 0; j < separator; j++) {
                     separateDocuments[i] += fileContent.get(k) + "\n";
                     ++k;
@@ -131,32 +197,7 @@ public class User {
                 signedMessages.add(signedMessage);
                 separateDocuments[i] = Base64.getEncoder().encodeToString(encryptedMessage);
                 i++;
-            }
-
-            //SIGN DOCUMENT
-            //ENCRYPT WITH AES
-            //ENCODE MESSAGE TO  BASE64 STRING
-
-            String directory = "dir";
-            int dirNum = 1;
-            new File(Main.REPOSITORIUM_FOLDER+userName).mkdir();
-            new File("./"+userName+"h").mkdir();
-            for(int j = 0; j < separateDocuments.length; j++) {
-                new File(Main.REPOSITORIUM_FOLDER+userName+"/"+directory+dirNum++).mkdir();
-
-            }
-
-            dirNum = 1;
-            for(int j = 0; j < separateDocuments.length; j++) {
-                BufferedWriter f_writer
-                        = new BufferedWriter(new FileWriter(
-                        Main.REPOSITORIUM_FOLDER+userName+"/dir"+dirNum+"/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(j+1) + ".txt"));
-                f_writer.write(separateDocuments[j]);
-                f_writer.close();
-                Files.write(Paths.get("./"+userName+"h/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(j+1) +".txt"), signedMessages.get(j));
-                dirNum++;
-            }
-
+            }*/
 
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -290,10 +331,13 @@ public class User {
                         fileCounter++;
                         hashCounter = 0;
                         String path = Main.REPOSITORIUM_FOLDER+userName+"/"+folder+"/"+fi;
-                        String readContent = Files.readString(Paths.get(path));
-                        //System.out.println("CONTENT " + readContent);
+                        /*String readContent = Files.readString(Paths.get(path));
                         byte[] signedMessage = Base64.getDecoder().decode(readContent);
-                        byte[] bytePlainText = aesCipher.doFinal(signedMessage);
+                        byte[] bytePlainText = aesCipher.doFinal(signedMessage);*/
+
+                        byte[] readContent = Files.readAllBytes(Paths.get(path));
+                        byte[] bytePlainText = aesCipher.doFinal(readContent);
+                        System.out.println("PLAIN TEXT = " + new String(bytePlainText));
                         fullContent += new String(bytePlainText);
                         File hashDir = new File("./"+userName+"h/");
                         String[] hashes = hashDir.list();

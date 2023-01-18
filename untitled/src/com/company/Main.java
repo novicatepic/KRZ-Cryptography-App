@@ -18,6 +18,8 @@ import java.util.Scanner;
 //JAVNIM KLJUCEM NA FAJL SISTEMU (generalno posto RSA nije predvidjen bas za kriptovanje-dekriptovanje, a i spor je)
 //PODSJETITI NA IMPLEMENTACIJU SA VJEZBI (HASH I RSA -> A SA DRUGE STRANE SIMETRICNI ALGORITAM)
 
+//FAJL U BAJTOVIMA!!!
+
 //PROVJERITI ORGANIZACIJU DIREKTORIJUMA
 
 //ZNACI -> SIMETRICNI KLJUC KRIPTOVAN ASIMETRICNIM ALGORITMOM RADI ZASTITE, TAJ SIMETRICNI KLJUC KORISTIMO ZA PODATKE
@@ -26,6 +28,7 @@ import java.util.Scanner;
 //DOWNLOAD DOKUMENTA: -> SMJESTANJE U DOWNLOADS FOLDER?
 
 //VALIDACIJA DOKUMENTA -> VALIDIRAMO SVAKI DIO DOKUMENTA I AKO NE VALJA SAMO NAZNACIMO KORISNIKU DA CJELOKUPAN DOKUMENT NE VALJA?
+//POSTO BACI ERROR -base64 ako nesto ja izmijenim
 
 //CRL LISTA, PROBLEM SA RADOM, DA LI JE OK AZURIRATI PETLJOM I IZBACITI ODREDJENJE SERTIFIKATE?
 //SVAKI PUT MORAM ISCITATI SVE IZ CRL LISTE I OPET UPISATI, PROBLEM?
@@ -35,6 +38,8 @@ import java.util.Scanner;
 //IMPORTOVANJE UNUTAR SERTIFIKATA?
 
 //DOKUMENT U BASE64 FORMATU, TJ. SEGMENTI, AKO NEKI NE VALJA, SAMO OBAVIJESTITI KORISNIKA I NE DOZVOLITI DOWNLOAD?
+
+//STA OCEKIVATI NA ODBRANI, KOLIKO CE SE DETALJNO GLEDATI KOJE STVARI IMPLEMENTIRANE I KAKO CE SE TESTIRATI?
 
 public class Main {
 
@@ -62,7 +67,7 @@ public class Main {
             /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
             main.caBody.signCertificate(req, "NOCO", "TEPIC");*/
 
-            //main.loadStartForm();
+            main.loadStartForm();
 
             //KeyStoreCreator.generateKeyStore();
 
@@ -76,6 +81,8 @@ public class Main {
             //user.uploadDocument("./lol.txt");
             //user.listDocumentsForReal();
             //user.downloadDocument();
+            //user.uploadDocument("./izvjestaj.txt");
+            //user.downloadDocument();
             //user.validateDocument("lol");
             //user.testFunc();
             //user.listDocuments();
@@ -87,7 +94,7 @@ public class Main {
             signed.verify(caBody.getPublicKey());
             System.out.println("SIGNED!");*/
 
-            main.loadStartForm();
+            //main.loadStartForm();
 
             //caBody.initCrlList();
             /*System.out.println("BEFORE ADDITION");
@@ -165,14 +172,13 @@ public class Main {
                         System.out.println("YOUR REVOKED CERT RETRIEVED BACK!");
                         caBody.reactivateCertificate(realCert);
                     }
-
+                    User user = new User(userName, password, realCert);
+                    System.out.println("YOU ARE LOGGED IN, WELCOME!");
+                    user.listDocumentsForReal();
                     while(true) {
-                        User user = new User(userName, password, realCert);
-                        //LIST FILES ETC.
-                        System.out.println("YOU ARE LOGGED IN, WELCOME!");
-                        user.listDocumentsForReal();
+
                         String workOption;
-                        System.out.println("Enter -l to list your files, -u to upload a file and -d to download a file: ");
+                        System.out.println("Enter -l to list your files, -u to upload a file, -d to download a file, -e to exit: ");
                         workOption = scanner.nextLine();
                         if("-l".equalsIgnoreCase(workOption)) {
                             user.listDocumentsForReal();
@@ -187,7 +193,10 @@ public class Main {
                             user.uploadDocument(path);
                         } else if("-d".equalsIgnoreCase(workOption)) {
                             user.downloadDocument();
-                        } else {
+                        } else if ("-e".equalsIgnoreCase(workOption)) {
+                            break;
+                        }
+                        else {
                             throw new Exception("Incorrect option!");
                         }
                     }
