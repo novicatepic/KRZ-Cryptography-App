@@ -194,6 +194,7 @@ public class Main {
                         } else if("-d".equalsIgnoreCase(workOption)) {
                             user.downloadDocument();
                         } else if ("-e".equalsIgnoreCase(workOption)) {
+                            user.logOut();
                             break;
                         }
                         else {
@@ -225,7 +226,7 @@ public class Main {
                             userName = scanner.nextLine();
                             System.out.println("Input new password: ");
                             password = scanner.nextLine();
-                            PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
+                            PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest(userName);
                             caBody.signCertificate(req, userName, password);
                             break;
                         default:
@@ -244,7 +245,7 @@ public class Main {
                 userName = scanner.nextLine();
                 System.out.println("Input new password: ");
                 password = scanner.nextLine();
-                PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
+                PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest(userName);
                 caBody.signCertificate(req, userName, password);
                 //CREATE CERTIFICATE LOGIC NEEDED!
 

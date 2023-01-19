@@ -10,7 +10,6 @@ import org.bouncycastle.cert.jcajce.*;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
-
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -21,8 +20,6 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.*;
 import java.security.cert.Certificate;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Scanner;
@@ -211,8 +208,6 @@ public class CABody {
                     crlBuilder.addCRLEntry(serialNumber, entry.getRevocationDate(), 1);
                 }
             }
-
-
             ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(privateKey);
 
             X509CRL crl = new JcaX509CRLConverter().getCRL(crlBuilder.build(signer));
@@ -260,14 +255,6 @@ public class CABody {
     }
 
     public X509Certificate signCertificate(PKCS10CertificationRequest certificateRequest, String uName, String pass) throws Exception {
-
-        //PUBLIC KEY MIGHT HAVE TO BE CORRECTED, BE CAREFUL!
-        /*SubjectPublicKeyInfo subjectPublicKeyInfo = certificateRequest.getSubjectPublicKeyInfo();
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(subjectPublicKeyInfo.getEncoded());
-        PublicKey convertedKey = keyFactory.generatePublic(x509EncodedKeySpec);
-        KeyPair keyPair = new KeyPair(convertedKey, null);*/
-
         if(checkIfCertExists(uName)) {
             throw new Exception("SORRY, BUT THAT CERTIFICATE ALREADY EXISTS!");
         }
@@ -292,13 +279,13 @@ public class CABody {
         ExtendedKeyUsage eku = new ExtendedKeyUsage(ekuValues);
 
         //EXTENSIONS ENABLED
-        /*builder.addExtension(
+        builder.addExtension(
                 Extension.extendedKeyUsage,
                 false,
                 eku
         );
 
-        builder.addExtension(Extension.keyUsage, false, new KeyUsage(keyUsage));*/
+        builder.addExtension(Extension.keyUsage, false, new KeyUsage(keyUsage));
 
         //EXTENSION NEEDED HERE
         importUNAndPassword(builder, uName, pass);

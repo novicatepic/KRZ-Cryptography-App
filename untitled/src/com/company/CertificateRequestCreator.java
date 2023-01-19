@@ -16,14 +16,14 @@ public class CertificateRequestCreator {
     public CertificateRequestCreator() {}
 
     //Simple request generator
-    public static PKCS10CertificationRequest makeCertRequest() {
+    public static PKCS10CertificationRequest makeCertRequest(String userName) {
         id++;
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
             keyPairGenerator.initialize(2048);
             KeyPair keyPair = keyPairGenerator.generateKeyPair();
-            String cn = "CN=Req"+String.valueOf(id);
-            X500Name subject = new X500Name(cn+", O=ETF, L=BL, ST=RS, C=BA");
+            //String cn = "CN=Req"+String.valueOf(id);
+            X500Name subject = new X500Name(userName+", O=ETF, L=BL, ST=RS, C=BA");
             PKCS10CertificationRequestBuilder cerBuilder = new JcaPKCS10CertificationRequestBuilder(
                     subject, keyPair.getPublic()
             );

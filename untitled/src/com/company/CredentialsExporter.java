@@ -1,5 +1,4 @@
 package com.company;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.x509.Extension;
@@ -8,11 +7,7 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import java.security.cert.X509Certificate;
 
 public class CredentialsExporter {
-
-    //private static ASN1ObjectIdentifier oid;
-
     public CredentialsExporter() {
-        //this.oid = oid;
     }
 
     public static String[] exportCredentials(X509Certificate cert) throws Exception {
