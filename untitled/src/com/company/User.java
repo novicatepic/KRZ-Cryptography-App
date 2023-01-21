@@ -30,8 +30,10 @@ public class User {
         userName = uN;
         password = p;
         this.certificate = certificate;
+        //LOAD PUBLIC KEY FROM THE CERTIFICATE
         publicKey = certificate.getPublicKey();
         KeyStore keyStore = KeyStore.getInstance("JKS");
+        //LOAD PRIVATE RSA KEY FROM KEYSTORE
         try (InputStream inputStream = new FileInputStream(Main.CER_FOLDER+"keystore.jks")) {
             keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
         }
@@ -42,6 +44,7 @@ public class User {
         fis.read(encryptedKey);
         //System.out.println("ENCRYPTED KEY = " + new String(encryptedKey));
         fis.close();
+        //WRITE PRIVATE KEY TO A FILE AS REQUIRED
         byte[] privateKeyToFile = privateKey.getEncoded();
         FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"PRIV-"+userName);
         fos.write(privateKeyToFile);
@@ -49,6 +52,7 @@ public class User {
     }
 
     public void logOut() throws InterruptedException {
+        //REMOVE PRIVATE KEY FROM FILE WHERE CERTIFICATES ARE STORED
         System.out.println("LOGGING OUT...");
         Thread.sleep(1500);
         File file = new File(Main.CER_FOLDER+"PRIV-"+userName);
@@ -63,6 +67,7 @@ public class User {
         String[] split = path.split("/");
         String originalPathName = split[split.length - 1].substring(0, split[split.length-1].length()-4);
 
+        //PICTURES ENABLED (ONLY JPG)
         boolean isPicture = false;
         if(path.endsWith(".jpg")) {
             isPicture = true;
@@ -78,10 +83,10 @@ public class User {
                 documentParts = fileContent.length;
             }
             byte[] separateDocuments = new byte[documentParts];
-            int numLines = fileContent.length;
-            int separator = numLines / documentParts;
             int i = 0;
             int k = 0;
+
+            //DECRYPT KEY FROM FILE (KEY WAS ENCRYPTED WITH PUBLIC RSA KEY)
             Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             cipher.init(Cipher.PRIVATE_KEY, privateKey);
             byte[] decryptedKey = cipher.doFinal(encryptedKey);
@@ -92,7 +97,6 @@ public class User {
             List<byte[]> signedMessages = new ArrayList<>();
 
             int partSize = fileContent.length / documentParts;
-            //boolean isIn = false;
             int contentCounter = 0;
 
             String directory = "dir";
@@ -122,7 +126,10 @@ public class User {
                     }
                     k=0;
                     contentCounter += tempSize;
+
+                //SIGN DOCUMENT (SHA256 WITH RSA)
                 Signature signature = Signature.getInstance("SHA256withRSA");
+                //SIGN WITH USERS PRIVATE KEY
                 signature.initSign(privateKey);
                 signature.update(bytes);
                 byte[] signedMessage = signature.sign();
@@ -133,10 +140,11 @@ public class User {
                 String pathString = Main.REPOSITORIUM_FOLDER+userName+"/dir"+dirNum+"/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(dirNum);
                 String pathString2 = "./"+userName+"h/"+originalPathName+Main.SPECIAL_SIGN+String.valueOf(dirNum);
                 if(isPicture) {
+                    //JUST SO I KNOW IF I'M READING A PICTURE OR I'M NOT
                     pathString+="jpg";
                     pathString2+="jpg";
                 }
-                //String pathString2 = String.valueOf(dirNum);
+                //WRITE HASH AND ENCRYPTED MESSAGE
                 Path path1 = Paths.get(pathString + ".txt");
                 Files.write(path1, encryptedMessage);
                 Files.write(Paths.get(pathString2 +".txt"), signedMessage);
@@ -145,7 +153,6 @@ public class User {
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
-            System.out.println("FILE EXCEPTION!");
         }
     }
 
@@ -178,11 +185,15 @@ public class User {
                     return;
                 }
             }
+
+            //STORE DOCUMENT IN DOWNLOADS FOLDER
+            //PROBABLY BAD IDEA BECAUSE NOT EVERYHONE HAS DOWNLOADS (LINUX...)
             System.out.println("DOCUMENT WILL BE STORED IN YOUR DOWNLOADS FOLDER!");
             String home = System.getProperty("user.home");
             File downloadsFolder = new File(home+"/Downloads/"+document);
 
             if(isPicture) {
+                //PROCESS PICTURE AND SAVE IT AS A PICTURE
                 int fullLength = 0;
                 for(int i = 0; i < bytesContent.size(); i++) {
                     fullLength += bytesContent.get(i).length;
@@ -200,6 +211,7 @@ public class User {
                 //System.out.println("Image IN!");
             }
             else {
+                //ELSE SAVE IT AS A TXT FILE
                 BufferedWriter writer = new BufferedWriter(new FileWriter(downloadsFolder+".txt"));
                 for(int i = 0; i < bytesContent.size(); i++) {
                     fullContent += new String(bytesContent.get(i));
@@ -237,7 +249,7 @@ public class User {
         String[] listFiles = helpDir.list();
         for(String s : listFiles)  {
             String[] split = s.split("-");
-            System.out.println("STR="+s);
+            //System.out.println("STR="+s);
             if(!files.contains(split[0]))
             {
                 rawFiles.add(s);
@@ -260,12 +272,14 @@ public class User {
     private String fullContent = "";
     private List<byte[]> bytesContent = new ArrayList<>();
     private boolean validateDocument(String document) throws Exception {
+        //DECRYPT SYMMETRIC KEY
         boolean isValid = true;
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.PRIVATE_KEY, privateKey);
         byte[] decryptedKey = cipher.doFinal(encryptedKey);
         SecretKey originalKey = new SecretKeySpec(decryptedKey , 0, decryptedKey .length, "AES");
         Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        //DECIPHER MODE ON
         aesCipher.init(Cipher.DECRYPT_MODE, originalKey);
 
         File workingDirectory = new File(Main.REPOSITORIUM_FOLDER+userName+"/");
@@ -284,6 +298,7 @@ public class User {
                         fileCounter++;
                         hashCounter = 0;
                         String path = Main.REPOSITORIUM_FOLDER+userName+"/"+folder+"/"+fi;
+                        //READ CONTENT AND TRY TO DECRYPT IT
                         byte[] readContent = Files.readAllBytes(Paths.get(path));
                         byte[] bytePlainText = aesCipher.doFinal(readContent);
                         //System.out.println("PLAIN TEXT = " + new String(bytePlainText));
@@ -302,6 +317,7 @@ public class User {
                                     String pathH = "./"+userName+"h/"+h;
                                     FileInputStream fis = new FileInputStream(pathH);
                                     byte[] readHash = new byte[512];
+                                    //TRY TO VERIFY FILE
                                     fis.read(readHash);
                                     fis.close();
                                     Signature signature = Signature.getInstance("SHA256withRSA");
@@ -309,9 +325,11 @@ public class User {
                                     signature.update(bytePlainText);
                                     boolean valid = signature.verify(readHash);
                                     if(!valid) {
-                                        isValid = false;
+                                        //IF IT'S BAD, THROW EXCEPTION
+                                        throw new Exception("INVALID DOCUMENT!");
+                                        //isValid = false;
                                     }
-                                    System.out.println("VALID: " + valid);
+                                    //System.out.println("VALID: " + valid);
                                 }
 
                             }
@@ -321,6 +339,7 @@ public class User {
                 }
             }
         }
+        //IF IT'S GOOD -> RETURN TRUE
         return isValid;
     }
 }

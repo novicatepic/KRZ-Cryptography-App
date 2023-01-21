@@ -23,17 +23,19 @@ public class CertificateRequestCreator {
             keyPairGenerator.initialize(2048);
             KeyPair keyPair = keyPairGenerator.generateKeyPair();
             //String cn = "CN=Req"+String.valueOf(id);
-            X500Name subject = new X500Name(userName+", O=ETF, L=BL, ST=RS, C=BA");
+            String cn = "CN="+userName;
+            X500Name subject = new X500Name(cn+", O=ETF, L=BL, ST=RS, C=BA");
             PKCS10CertificationRequestBuilder cerBuilder = new JcaPKCS10CertificationRequestBuilder(
                     subject, keyPair.getPublic()
             );
 
             ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSA").build(keyPair.getPrivate());
             PKCS10CertificationRequest request = cerBuilder.build(contentSigner);
-
+            System.out.println("AA");
             return request;
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
+            //e.printStackTrace();
         }
         return null;
     }

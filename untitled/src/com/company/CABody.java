@@ -28,13 +28,13 @@ import java.util.Set;
 public class CABody {
 
     private X509Certificate caCert;
-    private X509CRL crl;
     private PrivateKey privateKey;
     private PublicKey publicKey;
     private static final int keyUsage = KeyUsage.digitalSignature | KeyUsage.keyEncipherment;
     private static final KeyPurposeId[] ekuValues = {KeyPurposeId.id_kp_serverAuth};
 
     public CABody() throws Exception {
+        //INIT CA BODY
         Certificate tempCert = Main.readCertificateFromAFile();
         X509Certificate realCert = (X509Certificate)tempCert;
         this.caCert = realCert;
@@ -44,11 +44,10 @@ public class CABody {
             keyStore.load(inputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
         }
         privateKey = (PrivateKey) keyStore.getKey("CABody", "CABody".toCharArray());
-
         this.publicKey = caCert.getPublicKey();
-        this.crl = loadCRL();
     }
 
+    //FUNCTION ONLY IMPLEMENTED FIRST TIME
     public void CABodyCreator() {
         try {
             KeyStoreCreator.generateKeyStore();
@@ -97,9 +96,8 @@ public class CABody {
         }
     }
 
-
+    //FUNCTION CALLED ONLY FIRST TIME, INITIALIZE CRL LIST
     public void initCrlList() throws Exception {
-
         X509v2CRLBuilder crlBuilder = new JcaX509v2CRLBuilder(new X500Name("CN=CA"), new Date());
         ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(privateKey);
         X509CRL crl = new JcaX509CRLConverter().getCRL(crlBuilder.build(signer));
@@ -109,6 +107,7 @@ public class CABody {
 
     }
 
+    //LOAD CRL FROM A FILE
     public X509CRL loadCRL() throws Exception {
         FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
@@ -118,6 +117,7 @@ public class CABody {
         return crl;
     }
 
+    //SIMPLE FUNCTION TO CHECK REVOKED CERTIFICATES
     public void getRevokedCertificates() throws Exception {
         FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
@@ -125,16 +125,9 @@ public class CABody {
         fis.close();
 
         Set<? extends X509CRLEntry> revokedCertificates = crl.getRevokedCertificates();
-
-        /*if(revokedCertificates.size() == 0) {
-            System.out.println("SIZE=0");
-        }*/
-        System.out.println("BEFOREGO");
         if(revokedCertificates != null) {
             for(X509CRLEntry entry : revokedCertificates) {
-                //System.out.println("GO");
                 BigInteger serialNumber = entry.getSerialNumber();
-                System.out.println(serialNumber + "BLAAA");
             }
         }
 
@@ -172,7 +165,27 @@ public class CABody {
 
     }
 
+    //CHECK FROM MAIN
     public boolean checkIfIsRevoked(X509Certificate certificate) throws Exception {
+        FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
+        CertificateFactory factory = CertificateFactory.getInstance("X.509");
+        X509CRL crl2 = (X509CRL) factory.generateCRL(fis);
+        fis.close();
+        Set<? extends X509CRLEntry> revokedCertificates = crl2.getRevokedCertificates();
+        if(revokedCertificates != null) {
+            for(X509CRLEntry entry : revokedCertificates) {
+                BigInteger serialNumber = entry.getSerialNumber();
+                if(serialNumber.equals(certificate.getSerialNumber())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    //CHECK FROM CA BODY, BECAUSE CRL WILL BE DELETED IN MEANTIME (PROBLEMS WITH CRL!!!)
+    private boolean checkIfIsRevokedFromInside(X509Certificate certificate, X509CRL crl) throws Exception {
         Set<? extends X509CRLEntry> revokedCertificates = crl.getRevokedCertificates();
         if(revokedCertificates != null) {
             for(X509CRLEntry entry : revokedCertificates) {
@@ -186,7 +199,10 @@ public class CABody {
         return false;
     }
 
-    //IMPLEMENTATION FOR NOW -> NOT HAPPY
+    //TO ADD  TO CRL LIST
+    //I HAVE TO READ EVERYTHING FROM IT
+    //DELETE OLD CRL AND WRITE A NEW ONE
+    //BAD IMPLEMENTATION BUT COULDN'T WAIT OTHER WAY AROUND
     public void addToCrlList(X509Certificate cert) throws Exception {
         try {
             FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
@@ -194,7 +210,8 @@ public class CABody {
             X509CRL crl2 = (X509CRL) factory.generateCRL(fis);
             fis.close();
             //System.out.println("SERIAL " + cert.getSerialNumber());
-
+            File file = new File(Main.CER_FOLDER+"crl.crl");
+            file.delete();
             X500Name issuerName = new X500Name(caCert.getIssuerDN().toString());
             X509v2CRLBuilder crlBuilder = new JcaX509v2CRLBuilder(issuerName, new Date());
             BigInteger serial = cert.getSerialNumber();
@@ -215,24 +232,27 @@ public class CABody {
             byte[] data = crl.getEncoded();
             FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"crl.crl");
             fos.write(data);
-
+            fos.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    //TO REACTIVATE CERTIFICATE
+    //I HAVE TO READ ALL ENTRIES FROM CRL LIST
+    //AND REWRITE EVERY ENTRY THAT'S NOT A PARTICULAR CERTIFICATE
     public void reactivateCertificate(X509Certificate certificate) throws Exception {
         FileInputStream fis = new FileInputStream(Main.CER_FOLDER+"crl.crl");
         CertificateFactory factory = CertificateFactory.getInstance("X.509");
         X509CRL crl2 = (X509CRL) factory.generateCRL(fis);
         fis.close();
-
-        if(checkIfIsRevoked(certificate)) {
+        File f = new File(Main.CER_FOLDER+"crl.crl");
+        f.delete();
+        if(checkIfIsRevokedFromInside(certificate, crl2)) {
             X500Name issuerName = new X500Name(caCert.getIssuerDN().toString());
             X509v2CRLBuilder crlBuilder = new JcaX509v2CRLBuilder(issuerName, new Date());
             if(crl2.getRevokedCertificates() != null) {
                 for(X509CRLEntry entry : crl2.getRevokedCertificates()) {
-                    //System.out.println("POWER RANGERS");
                     BigInteger serialNumber = entry.getSerialNumber();
                     if(!serialNumber.equals(certificate.getSerialNumber())) {
                         crlBuilder.addCRLEntry(serialNumber, entry.getRevocationDate(), 1);
@@ -248,12 +268,14 @@ public class CABody {
             byte[] data = crl.getEncoded();
             FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"crl.crl");
             fos.write(data);
-
+            fos.close();
         } else {
             throw new Exception("Cannot reactivate something that's active or exists!");
         }
     }
 
+    //GENERATE KEY PAIR FOR NEW CERTIFICATE
+    //SIGN IT WITH CA CERTIFICATE
     public X509Certificate signCertificate(PKCS10CertificationRequest certificateRequest, String uName, String pass) throws Exception {
         if(checkIfCertExists(uName)) {
             throw new Exception("SORRY, BUT THAT CERTIFICATE ALREADY EXISTS!");
@@ -278,7 +300,7 @@ public class CABody {
         JcaX509ExtensionUtils extUtils = new JcaX509ExtensionUtils();
         ExtendedKeyUsage eku = new ExtendedKeyUsage(ekuValues);
 
-        //EXTENSIONS ENABLED
+        //EXTENSIONS ENABLED, AS PER PROJECT SPECIFICATION
         builder.addExtension(
                 Extension.extendedKeyUsage,
                 false,
@@ -287,7 +309,7 @@ public class CABody {
 
         builder.addExtension(Extension.keyUsage, false, new KeyUsage(keyUsage));
 
-        //EXTENSION NEEDED HERE
+        //AS PER PROJECT SPEC (NOT SURE ABOUT PASSWORD)
         importUNAndPassword(builder, uName, pass);
 
         ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(privateKey);
@@ -318,6 +340,7 @@ public class CABody {
             keyStore.store(outputStream, KeyStoreCreator.KEY_STORE_PASSWORD.toCharArray());
         }
 
+        //GENERATE SYMMETRIC KEY FOR EVERY USER THAT HE EVENT WON'T KNOW ABOUT
         KeyGenerator generator = KeyGenerator.getInstance("AES");
         generator.init(128); // The AES key size in number of bits
         SecretKey secKey = generator.generateKey();
@@ -355,7 +378,7 @@ public class CABody {
     }
 
     private void importUNAndPassword(X509v3CertificateBuilder builder, String userName, String password) throws Exception {
-
+        //NOT SURE WHAT HAPPENED HERE -> IMPLEMENTED FROM INTERNET
         String toConvert = userName + ":" + password;
         ASN1UTF8String utf8String = new DERUTF8String(toConvert);
         byte[] str = utf8String.getEncoded();
@@ -370,14 +393,5 @@ public class CABody {
         builder.addExtension(Extension.subjectAlternativeName, false, subjectAltNames);
 
         new CredentialsExporter();
-        //System.out.println("BLAA");
-    }
-
-    public X509Certificate getCaCert() {
-        return caCert;
-    }
-
-    public PublicKey getPublicKey() {
-        return publicKey;
     }
 }

@@ -12,7 +12,6 @@ public class KeyStoreCreator {
     public static void generateKeyStore() throws Exception {
         KeyStore keyStore = KeyStore.getInstance("JKS");
         keyStore.load(null, null);
-
         FileOutputStream fos = new FileOutputStream(Main.CER_FOLDER+"keystore.jks");
         keyStore.store(fos, KEY_STORE_PASSWORD.toCharArray());
         fos.close();

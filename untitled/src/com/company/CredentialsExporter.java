@@ -10,6 +10,7 @@ public class CredentialsExporter {
     public CredentialsExporter() {
     }
 
+    //EXPORT USER NAME AND PASSWORD
     public static String[] exportCredentials(X509Certificate cert) throws Exception {
         String[] exported = new String[2];
 

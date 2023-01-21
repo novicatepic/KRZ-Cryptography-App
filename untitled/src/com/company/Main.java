@@ -59,8 +59,8 @@ public class Main {
 
         try {
             Main main = new Main();
-            /*main.caBody.CABodyCreator();
-            main.caBody.initCrlList();*/
+            /*main.caBody.CABodyCreator();*/
+            //main.caBody.initCrlList();
             //KeyStoreCreator.generateKeyStore();
             /*PKCS10CertificationRequest req = CertificateRequestCreator.makeCertRequest();
             X509Certificate signed = main.caBody.signCertificate(req, "Novica", "123");*/
@@ -109,26 +109,21 @@ public class Main {
             //writeVerifiedCertificateToAFile(signed);
         } catch (Exception e) {
             System.out.println(e.getMessage());
-            System.out.println("NOT SIGNED");
+            //System.out.println("NOT SIGNED");
         }
         //System.out.println(casted.getSubjectDN());
 
     }
 
-    /*public void writeVerifiedCertificateToAFile(X509Certificate toWrite) throws Exception {
-        FileOutputStream fos = new FileOutputStream("usrCrl.crl");
-        byte[] data = toWrite.getEncoded();
-        fos.write(data);
-    }*/
-
     public void loadStartForm() throws Exception {
         Scanner scanner = new Scanner(System.in);
         String answer;
         int tries = 3;
-        boolean correct = false;
+        //boolean correct = false;
 
 
         while (true) {
+            boolean correct = false;
             System.out.println("Do you have an account (y/n): ");
             answer = scanner.nextLine();
             String userName="", password="", certName;
@@ -168,6 +163,7 @@ public class Main {
 
 
                 if(correct) {
+                    //IF CERTIFICATE WAS REVOKED, GET IT BACK
                     if(caBody.checkIfIsRevoked(realCert)) {
                         System.out.println("YOUR REVOKED CERT RETRIEVED BACK!");
                         caBody.reactivateCertificate(realCert);
@@ -218,6 +214,7 @@ public class Main {
                             if(userName.equals(realUserName) && password.equals(realPassword)) {
                                 caBody.reactivateCertificate(realCert);
                             }
+                            System.out.println("YOUR CERTIFICATE HAS BEEN REACTIVATED!");
                             break;
                         case "r":
                             System.out.println("WELCOME TO ACCOUNT CREATOR: ");
